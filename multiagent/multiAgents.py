@@ -74,26 +74,30 @@ class ReflexAgent(Agent):
         newScaredTimes = [ghostState.scaredTimer for ghostState in newGhostStates]
 
         "*** YOUR CODE HERE ***"
-        # initialize food position and distance as infinite number
+        # initialize food position, distance and score
         foodList = currentGameState.getFood().asList()
+        foodScore = float("inf")
+        ghostScore = float("-inf")
         distance = float("inf")
 
         # get distance to food
         for food in foodList:
             foodDistance = manhattanDistance(newPos, food)
 
-            # update distance
+            # update distance and score
             if distance > foodDistance:
                 distance = foodDistance
+                foodScore = 1.0 / (1.0 + distance)
 
         # get distance to ghost
         for ghost in newGhostStates:
             ghostPos = ghost.getPosition()
             ghostDistance = manhattanDistance(newPos, ghostPos)
             if ghostDistance == 0:
-                return 0
+                return ghostScore
+
         # calculate the score
-        score = 1.0 / (1.0 + distance)
+        score = foodScore
         return score
 
 def scoreEvaluationFunction(currentGameState):
@@ -133,16 +137,16 @@ class MinimaxAgent(MultiAgentSearchAgent):
 
     # declare maximum value
     def maxValue(self, gameState, agentIndex, depthM):
-        # initialize maximum value and move
+        # initialize maximum value and action
         max_value = float("-inf")
-        actionMove = "None"
+        actionMove = "Stop"
         legalAction = gameState.getLegalActions(agentIndex)
 
         # check for all legal action to compare values
         for leg_act in legalAction:
             successor = gameState.generateSuccessor(agentIndex, leg_act)
             # continue checking pruning
-            compare = self.minimax(successor, (agentIndex + 1), depthM)
+            compare = self.miniMax(successor, (agentIndex + 1), depthM)
 
             # if pruning is bigger, update maximum value and move
             if compare > max_value:
@@ -156,14 +160,14 @@ class MinimaxAgent(MultiAgentSearchAgent):
 
     # declare minimum value
     def minValue(self, gameState, agentIndex, depthM):
-        # initialize minimum value and move
+        # initialize minimum value
         min_value = float("inf")
         legalAction = gameState.getLegalActions(agentIndex)
 
         # check for all legal action to compare values
         for leg_act in legalAction:
             successor = gameState.generateSuccessor(agentIndex, leg_act)
-            temp = self.minimax(successor, (agentIndex + 1), depthM)
+            temp = self.miniMax(successor, (agentIndex + 1), depthM)
 
             # if pruning is smaller, update minimum value
             if temp < min_value:
@@ -171,19 +175,19 @@ class MinimaxAgent(MultiAgentSearchAgent):
 
         return min_value
 
-    def minimax(self, gameState, agentIndex, depthM):
+    def miniMax(self, gameState, agentIndex, depthM):
         # update agentIndex and depth
         if agentIndex >= gameState.getNumAgents():
             agentIndex = 0
-            depthM = depthM + 1
+            depthM += 1
 
         # if game over, show the score
         if gameState.isWin() or gameState.isLose() or depthM == self.depth:
             return self.evaluationFunction(gameState)
 
-        if agentIndex == self.index:    # show max
+        if agentIndex == self.index:    # show maximum value
             value = self.maxValue(gameState, agentIndex, depthM)
-        else:                           # otherwise, show min
+        else:                           # otherwise, show minimum value
             value = self.minValue(gameState, agentIndex, depthM)
 
         return value
@@ -212,7 +216,7 @@ class MinimaxAgent(MultiAgentSearchAgent):
         Returns whether or not the game state is a losing state
         """
         "*** YOUR CODE HERE ***"
-        return self.minimax(gameState, 0, 0)
+        return self.miniMax(gameState, 0, 0)
 
 
 class AlphaBetaAgent(MultiAgentSearchAgent):
@@ -222,8 +226,9 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
 
     # declare maximum value
     def maxValue(self, gameState, agentIndex, depthM, alpha, beta):
+        # initialize maximum value and action
         max_value = float("-inf")
-        actionMove = "None"
+        actionMove = "Stop"
         legalAction = gameState.getLegalActions(agentIndex)
 
         # check for all legal action to compare values
@@ -247,6 +252,7 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
 
     # declare minimum value
     def minValue(self, gameState, agentIndex, depthM, alpha, beta):
+        # initialize minimum value
         min_value = float("inf")
         legalAction = gameState.getLegalActions(agentIndex)
 
@@ -266,17 +272,18 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
         return min_value
 
     def alphaBeta(self, gameState, agentIndex, depthM, alpha, beta):
-
+        # update agentIndex and depth
         if agentIndex >= gameState.getNumAgents():
             agentIndex = 0
-            depthM = depthM + 1
+            depthM += 1
 
+        # if game over, show the score
         if gameState.isWin() or gameState.isLose() or depthM == self.depth:
             return self.evaluationFunction(gameState)
 
-        if agentIndex == self.index:
+        if agentIndex == self.index:    # show maximum value
             value = self.maxValue(gameState, agentIndex, depthM, alpha, beta)
-        else:
+        else:                           # otherwise, show minimum value
             value = self.minValue(gameState, agentIndex, depthM, alpha, beta)
 
         return value
@@ -293,6 +300,65 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
       Your expectimax agent (question 4)
     """
 
+    # declare maximum value
+    def maxValue(self, gameState, agentIndex, depthM):
+        # initialize maximum value and action
+        max_value = float("-inf")
+        actionMove = "Stop"
+        legalAction = gameState.getLegalActions(agentIndex)
+
+        # check for all legal action to compare values
+        for leg_act in legalAction:
+            # continue checking pruning
+            successor = gameState.generateSuccessor(agentIndex, leg_act)
+            compare = self.expectiMax(successor, (agentIndex + 1), depthM)
+
+            # if pruning is bigger, update maximum value and move
+            if compare > max_value:
+                max_value = compare
+                actionMove = leg_act
+
+        if depthM == 0:
+            return actionMove
+        else:
+            return max_value
+
+    # declare expect value
+    def expectValue(self, gameState, agentIndex, depthM):
+        # initialize minimum value and action
+        actionMove = "Stop"
+        legalAction = gameState.getLegalActions(agentIndex)
+        exp_value = 0
+        probability = 1.0 / len(legalAction)
+
+        # check for all legal action to compare values
+        for leg_act in legalAction:
+            successor = gameState.generateSuccessor(agentIndex, leg_act)
+            compare = self.expectiMax(successor, (agentIndex + 1), depthM)
+
+            # update expect value and action
+            exp_value += probability * compare
+            actionMove = leg_act
+
+        return exp_value
+
+    def expectiMax(self, gameState, agentIndex, depthM):
+        # update agentIndex and depth
+        if agentIndex >= gameState.getNumAgents():
+            agentIndex = 0
+            depthM += 1
+
+        # if game over, show the score
+        if gameState.isWin() or gameState.isLose() or depthM == self.depth:
+            return self.evaluationFunction(gameState)
+
+        if agentIndex == self.index:    # show maximum value
+            value = self.maxValue(gameState, agentIndex, depthM)
+        else:                           # otherwise, show expect value
+            value = self.expectValue(gameState, agentIndex, depthM)
+
+        return value
+
     def getAction(self, gameState):
         """
         Returns the expectimax action using self.depth and self.evaluationFunction
@@ -301,7 +367,7 @@ class ExpectimaxAgent(MultiAgentSearchAgent):
         legal moves.
         """
         "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        return self.expectiMax(gameState, 0, 0)
 
 def betterEvaluationFunction(currentGameState):
     """
@@ -311,7 +377,37 @@ def betterEvaluationFunction(currentGameState):
     DESCRIPTION: <write something here so we know what you did>
     """
     "*** YOUR CODE HERE ***"
-    util.raiseNotDefined()
+    curPos = currentGameState.getPacmanPosition()
+    curFoodNum = currentGameState.getNumFood()
+    curGhostStates = currentGameState.getGhostStates()
+    curCapsules = currentGameState.getCapsules()
+    curScore = currentGameState.getScore()
+
+    ghost_dis = float("inf")
+    ghostScore = float("-inf")
+
+    # get food score
+    foodScore = 1.0 / (1.0 + curFoodNum)
+
+    # get ghost score
+    for ghostState in curGhostStates:
+        ghostPos = ghostState.getPosition()
+        ghostDistance = manhattanDistance(curPos, ghostPos)
+
+        if ghostDistance == 0:
+            return ghostScore
+        else:
+            if ghost_dis > ghostDistance:
+                ghost_dis = ghostDistance
+                ghost_dis = ghost_dis / len(curGhostStates)
+                ghostScore = 1.0 / (1.0 + ghost_dis)
+
+    # get capsule score
+    capScore = 1.0 / (1.0 + len(curCapsules))
+
+    # get score
+    score = curScore + foodScore + ghostScore + capScore
+    return score
 
 # Abbreviation
 better = betterEvaluationFunction
