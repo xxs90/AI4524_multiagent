@@ -74,22 +74,26 @@ class ReflexAgent(Agent):
         newScaredTimes = [ghostState.scaredTimer for ghostState in newGhostStates]
 
         "*** YOUR CODE HERE ***"
-        # initialize food position and distance
+        # initialize food position and distance as infinite number
         foodList = currentGameState.getFood().asList()
         distance = float("inf")
 
-        for ghost in newGhostStates:
-            ghostPos = ghost.getPosition()
-            if ghostPos == newPos:
-                return float("-inf")
-
+        # get distance to food
         for food in foodList:
-            foodDistance = manhattanDistance(food, newPos)
+            foodDistance = manhattanDistance(newPos, food)
+
+            # update distance
             if distance > foodDistance:
                 distance = foodDistance
 
+        # get distance to ghost
+        for ghost in newGhostStates:
+            ghostPos = ghost.getPosition()
+            ghostDistance = manhattanDistance(newPos, ghostPos)
+            if ghostDistance == 0:
+                return 0
+        # calculate the score
         score = 1.0 / (1.0 + distance)
-
         return score
 
 def scoreEvaluationFunction(currentGameState):
@@ -127,17 +131,22 @@ class MinimaxAgent(MultiAgentSearchAgent):
     Your minimax agent (question 2)
     """
 
+    # declare maximum value
     def maxValue(self, gameState, agentIndex, depthM):
+        # initialize maximum value and move
         max_value = float("-inf")
         actionMove = "None"
         legalAction = gameState.getLegalActions(agentIndex)
 
+        # check for all legal action to compare values
         for leg_act in legalAction:
             successor = gameState.generateSuccessor(agentIndex, leg_act)
-            temp = self.minimax(successor, (agentIndex + 1), depthM)
+            # continue checking pruning
+            compare = self.minimax(successor, (agentIndex + 1), depthM)
 
-            if temp > max_value:
-                max_value = temp
+            # if pruning is bigger, update maximum value and move
+            if compare > max_value:
+                max_value = compare
                 actionMove = leg_act
 
         if depthM == 0:
@@ -145,31 +154,36 @@ class MinimaxAgent(MultiAgentSearchAgent):
         else:
             return max_value
 
+    # declare minimum value
     def minValue(self, gameState, agentIndex, depthM):
+        # initialize minimum value and move
         min_value = float("inf")
         legalAction = gameState.getLegalActions(agentIndex)
 
+        # check for all legal action to compare values
         for leg_act in legalAction:
             successor = gameState.generateSuccessor(agentIndex, leg_act)
             temp = self.minimax(successor, (agentIndex + 1), depthM)
 
+            # if pruning is smaller, update minimum value
             if temp < min_value:
                 min_value = temp
 
         return min_value
 
     def minimax(self, gameState, agentIndex, depthM):
-
+        # update agentIndex and depth
         if agentIndex >= gameState.getNumAgents():
             agentIndex = 0
             depthM = depthM + 1
 
+        # if game over, show the score
         if gameState.isWin() or gameState.isLose() or depthM == self.depth:
             return self.evaluationFunction(gameState)
 
-        if agentIndex == self.index:
+        if agentIndex == self.index:    # show max
             value = self.maxValue(gameState, agentIndex, depthM)
-        else:
+        else:                           # otherwise, show min
             value = self.minValue(gameState, agentIndex, depthM)
 
         return value
@@ -206,12 +220,73 @@ class AlphaBetaAgent(MultiAgentSearchAgent):
     Your minimax agent with alpha-beta pruning (question 3)
     """
 
+    # declare maximum value
+    def maxValue(self, gameState, agentIndex, depthM, alpha, beta):
+        max_value = float("-inf")
+        actionMove = "None"
+        legalAction = gameState.getLegalActions(agentIndex)
+
+        # check for all legal action to compare values
+        for leg_act in legalAction:
+            successor = gameState.generateSuccessor(agentIndex, leg_act)
+            temp = self.alphaBeta(successor, (agentIndex + 1), depthM, alpha, beta)
+
+            # if pruning is bigger, update maximum value and action
+            if temp > max_value:
+                max_value = max(max_value, temp)
+                actionMove = leg_act
+
+            # lower and upper bound update
+            alpha = max(alpha, max_value)
+            if beta < max_value:
+                return max_value
+
+        if depthM == 0:
+            return actionMove
+        return max_value
+
+    # declare minimum value
+    def minValue(self, gameState, agentIndex, depthM, alpha, beta):
+        min_value = float("inf")
+        legalAction = gameState.getLegalActions(agentIndex)
+
+        # check for all legal action to compare values
+        for leg_act in legalAction:
+            successor = gameState.generateSuccessor(agentIndex, leg_act)
+            temp = self.alphaBeta(successor, (agentIndex + 1), depthM, alpha, beta)
+
+            # update minimum value
+            min_value = min(min_value, temp)
+
+            # lower and upper bound update
+            beta = min(min_value, beta)
+            if alpha > min_value:
+                return min_value
+
+        return min_value
+
+    def alphaBeta(self, gameState, agentIndex, depthM, alpha, beta):
+
+        if agentIndex >= gameState.getNumAgents():
+            agentIndex = 0
+            depthM = depthM + 1
+
+        if gameState.isWin() or gameState.isLose() or depthM == self.depth:
+            return self.evaluationFunction(gameState)
+
+        if agentIndex == self.index:
+            value = self.maxValue(gameState, agentIndex, depthM, alpha, beta)
+        else:
+            value = self.minValue(gameState, agentIndex, depthM, alpha, beta)
+
+        return value
+
     def getAction(self, gameState):
         """
         Returns the minimax action using self.depth and self.evaluationFunction
         """
         "*** YOUR CODE HERE ***"
-        util.raiseNotDefined()
+        return self.alphaBeta(gameState, 0, 0, float("-inf"), float("inf"))
 
 class ExpectimaxAgent(MultiAgentSearchAgent):
     """
